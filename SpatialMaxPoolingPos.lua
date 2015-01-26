@@ -9,7 +9,10 @@ end
 
 function SpatialMaxPoolingPos:updateOutput(input)
    if input:type() == 'torch.CudaTensor' then
-      -- TODO
+      self.output = torch.CudaTensor()
+      self.output_dx = torch.CudaTensor()
+      self.output_dy = torch.CudaTensor()
+      jz.SpatialMaxPoolingPos_updateOutput(self, input)
    else
       local inputSize = input:size()
       if inputSize:size() ~= 4 then
@@ -63,7 +66,7 @@ end
 
 function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
    if input:type() == 'torch.CudaTensor' then
-      -- TODO
+      jz.SpatialMaxPoolingPos(self, input, gradOutput)
    else
       self.gradInput = torch.Tensor():resizeAs(input):fill(0):typeAs(input)
       local inputSize = input:size()
@@ -80,7 +83,6 @@ function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
       local maxW = nOutputCols * kW
       local maxH = nOutputRows * kH
       
-      -- TODO you should take care of dx and dy's gradients
       for batch = 1, nBatches do
          for inplane = 1, inputSize[2] do
             local dxPlane = self.output[batch][3*inplane-1]
