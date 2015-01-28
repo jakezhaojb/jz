@@ -1,5 +1,4 @@
-local SpatialMaxPoolingPos, parent = torch.class('nn.SpatialMaxPoolingPos', 'nn.Module')
---TODO temporary
+local SpatialMaxPoolingPos, parent = torch.class('jz.SpatialMaxPoolingPos', 'nn.Module')
 
 function SpatialMaxPoolingPos:__init(kW, kH)
    parent.__init(self)
@@ -22,13 +21,15 @@ function SpatialMaxPoolingPos:updateOutput(input)
       local kW = self.kW
       local kH = self.kH
       local nBatches = inputSize[1]
-      local nOutputPlanes = 3*inputSize[2] -- TODO
+      local nOutputPlanes = inputSize[2]
       local nOutputCols = math.floor(inputSize[4]/kW)
       local nOutputRows = math.floor(inputSize[3]/kH)
       local maxW = nOutputCols * kW
       local maxH = nOutputRows * kH
 
       self.output:resize(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
+      self.output_dx = torch.Tensor(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
+      self.output_dy = torch.Tensor(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
 
       for batch = 1,nBatches do
          for inplane = 1, inputSize[2] do
@@ -38,21 +39,21 @@ function SpatialMaxPoolingPos:updateOutput(input)
                  for j = 1, maxW, kW do
                     -- get the max one
                     local poolMax = 0
-                    local dx = 0
                     local dy = 0
+                    local dx = 0
                     -- this is super-slow
                     for h = 1, kH do
                        for w = 1, kW do
                           if input[batch][inplane][i+h-1][j+w-1] > poolMax then
                              poolMax = input[batch][inplane][i+h-1][j+w-1]
-                             dx = h
-                             dy = w
+                             dy = h
+                             dx = w
                           end
                        end
                     end
-                    self.output[batch][inplane*3-2][oi][oj] = poolMax
-                    self.output[batch][inplane*3-1][oi][oj] = dx
-                    self.output[batch][inplane*3][oi][oj] = dy
+                    self.output[batch][inplane][oi][oj] = poolMax
+                    self.output_dy[batch][inplane][oi][oj] = dy
+                    self.output_dx[batch][inplane][oi][oj] = dx
                     oj = oj + 1
                  end
                  oi = oi + 1
@@ -77,7 +78,7 @@ function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
       local kW = self.kW
       local kH = self.kH
       local nBatches = inputSize[1]
-      local nOutputPlanes = 3*inputSize[2] -- TODO
+      local nOutputPlanes = inputSize[2]
       local nOutputCols = math.floor(inputSize[4]/kW)
       local nOutputRows = math.floor(inputSize[3]/kH)
       local maxW = nOutputCols * kW
@@ -85,14 +86,14 @@ function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
       
       for batch = 1, nBatches do
          for inplane = 1, inputSize[2] do
-            local dxPlane = self.output[batch][3*inplane-1]
-            local dyPlane = self.output[batch][3*inplane]
-            local gradOutputElem = gradOutput[batch][3*inplane-2]
+            local dwPlane = self.output_dx[batch][inplane]
+            local dhPlane = self.output_dy[batch][inplane]
+            local gradOutputElem = gradOutput[batch][inplane]
             local oi = 1
             for i = 1, maxH, kH do
                local oj = 1
                for j = 1, maxW, kW do
-                  self.gradInput[batch][inplane][i+dxPlane[oi][oj]-1][j+dyPlane[oi][oj]-1] = gradOutputElem[oi][oj]
+                  self.gradInput[batch][inplane][i+dhPlane[oi][oj]-1][j+dwPlane[oi][oj]-1] = gradOutputElem[oi][oj]
                   oj = oj + 1
                end
                oi = oi + 1

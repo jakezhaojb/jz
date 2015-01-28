@@ -1,0 +1,49 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
+CMAKE_POLICY(VERSION 2.8)
+
+SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
+
+FIND_PACKAGE(Torch REQUIRED)
+
+IF(APPLE)
+  # work around for mac os x bug:
+  # http://stackoverflow.com/questions/16286588/cuda-5-0-cmake-and-make-failing-on-osx-10-8-3
+  if (NOT DEFINED CUDA_HOST_COMPILER AND CMAKE_C_COMPILER_ID STREQUAL "Clang" AND EXISTS /usr/bin/gcc)
+    set(CUDA_HOST_COMPILER /usr/bin/gcc CACHE FILEPATH "Host side compiler used by NVCC")
+    message(STATUS "Setting CMAKE_HOST_COMPILER to /usr/bin/gcc instead of ${CMAKE_C_COMPILER}.")
+  endif()
+ENDIF()
+
+FIND_PACKAGE(CUDA 4.0 REQUIRED)
+
+LIST(APPEND CUDA_NVCC_FLAGS "-arch=sm_20")
+
+INCLUDE_DIRECTORIES("/home/jz1672/install/new_torch7_2014_10_24/include/THC"
+                    "/home/jz1672/install/new_torch7_2014_10_24/include"
+                    "/home/jz1672/install/new_torch7_2014_10_24/include/TH")
+LINK_DIRECTORIES("/home/jz1672/install/new_torch7_2014_10_24/lib/lua/5.1"
+                 "/home/jz1672/install/new_torch7_2014_10_24/lib")
+
+SET(src-cuda init.cu)
+#SET(luasrc init.lua)
+
+CUDA_ADD_LIBRARY(jz MODULE ${src-cuda})
+TARGET_LINK_LIBRARIES(jz luaT THC TH)
+IF(APPLE)
+  SET_TARGET_PROPERTIES(jz PROPERTIES
+    LINK_FLAGS "-undefined dynamic_lookup")
+ENDIF()
+
+### Torch packages supposes libraries prefix is "lib"
+SET_TARGET_PROPERTIES(jz PROPERTIES
+  PREFIX "lib"
+  IMPORT_PREFIX "lib")
+
+#INSTALL(TARGETS jz
+#  RUNTIME DESTINATION "/home/jz1672/install/jz/"
+#  LIBRARY DESTINATION "/home/jz1672/install/jz/")
+
+#INSTALL(
+#  FILES
+#  ${luasrc}
+#  DESTINATION "/home/jz1672/install/jz/")

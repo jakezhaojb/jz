@@ -1,5 +1,6 @@
 #include "luaT.h"
 #include "THC.h"
+#include "cuda.h"
 
 #include <thrust/transform.h>
 #include <thrust/device_ptr.h>
@@ -40,12 +41,9 @@ __global__ void output_kernel(float *input, float *output, float *output_dx, flo
             float dy = 0;
 
             if (xout < output_w && yout < output_h){
-                for (int ky = 0; ky < kH && yin + kx < input_h; ky++){
-                    for (int kx = 0; kx < kw && xin + kx < input_w; kx++){
+                for (int ky = 0; ky < kH && yin + ky < input_h; ky++){
+                    for (int kx = 0; kx < kW && xin + kx < input_w; kx++){
                         float* ptr_input_pool = ptr_input + kx + ky * input_w;
-                        float* ptr_output_pool = ptr_output_plane + kx + ky * input_w;
-                        float* ptr_output_pool_dx = ptr_output_plane_dx + kx + ky * input_w;
-                        float* ptr_output_pool_dy = ptr_output_plane_dy + kx + ky * input_w;
 
                         if (*ptr_input_pool > poolMax){
                             poolMax = *ptr_input_pool;
@@ -54,13 +52,13 @@ __global__ void output_kernel(float *input, float *output, float *output_dx, flo
                         }
                     }
                 }
-                *ptr_output_pool = poolMax;
-                *ptr_output_dx = dx;
-                *ptr_output_dy = dy;
+                *ptr_output = poolMax;
+                *ptr_output_dx = dx + 1;
+                *ptr_output_dy = dy + 1;
             } // endif
-            x_out += xout_step;
+            xout += xout_step;
         } //end for xin
-        y_out += yout_step;
+        yout += yout_step;
     } //end for yin 
 }
 
@@ -80,8 +78,8 @@ __global__ void gradInput_kernel(float* gradInput, float* gradOutput, float* out
    int xin_end = (input_w/kW) * kW;
    int yin_end = (input_h/kH) * kH;
     
-   int x_out = threadIdx.x;
-   int y_out = threadIdx.y;
+   int xout = threadIdx.x;
+   int yout = threadIdx.y;
    const int xout_step = blockDim.x;
    const int yout_step = blockDim.y;
 
@@ -95,7 +93,7 @@ __global__ void gradInput_kernel(float* gradInput, float* gradOutput, float* out
            for (int ky = 0; ky < kH && yin + ky < input_h; ky++){
             for (int kx = 0; kx < kW && xin + kx < input_w; kx++){
                 float* ptr_gradInput_pool = ptr_gradInput + kx + ky * input_w;
-                if(kx == *ptr_gradOutput_dx && ky == *ptr_gradOutput_dy)
+                if(kx == *ptr_gradOutput_dx-1 && ky == *ptr_gradOutput_dy-1)
                     *ptr_gradInput_pool = *ptr_gradOuput;
                 else
                     *ptr_gradInput_pool = 0;
@@ -110,11 +108,11 @@ __global__ void gradInput_kernel(float* gradInput, float* gradOutput, float* out
 static int cunn_SpatialMaxPoolingPos_updateOutput(lua_State *L){
     THCudaTensor* input = (THCudaTensor*)luaT_checkudata(L, 2, "torch.CudaTensor");
     THCudaTensor* output = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "output", "torch.CudaTensor");
-    THCudaTensor* dx = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "dx", "torch.CudaTensor");
-    THCudaTensor* dy = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "dy", "torch.CudaTensor");
+    THCudaTensor* dx = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "output_dx", "torch.CudaTensor");
+    THCudaTensor* dy = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "output_dy", "torch.CudaTensor");
 
-    int kW = luaT_getfiledcheckint(L, 1, "kW");
-    int kH = luaT_getfiledcheckint(L, 1, "kH");
+    int kW = luaT_getfieldcheckint(L, 1, "kW");
+    int kH = luaT_getfieldcheckint(L, 1, "kH");
     float* output_data;
     float* output_dx;
     float* output_dy;
@@ -122,7 +120,7 @@ static int cunn_SpatialMaxPoolingPos_updateOutput(lua_State *L){
 
     long nInputCols = input -> size[3];
     long nInputRows = input -> size[2];
-    long nInputPlane = intput -> size[1];
+    long nInputPlane = input -> size[1];
     long nBatch = input -> size[0];
     long nOutputCols = nInputCols / kW;
     long nOutputRows = nInputRows / kH;
@@ -141,7 +139,7 @@ static int cunn_SpatialMaxPoolingPos_updateOutput(lua_State *L){
     output_dx = THCudaTensor_data(dx);
     output_dy = THCudaTensor_data(dy);
 
-    dim3 blocks(nInputPlane*nbatch, 1);
+    dim3 blocks(nInputPlane*nBatch, 1);
     dim3 threads(32,8);
     
     output_kernel <<<blocks, threads>>> (input_data, output_data, output_dx, output_dy, nInputPlane, nInputRows, nInputCols, nOutputRows, nOutputCols, kH, kW);
@@ -181,7 +179,7 @@ static int cunn_SpatialMaxPoolingPos_updateGradInput(lua_State *L){
     THCudaTensor_resizeAs(gradInput, input);
     THCudaTensor_zero(gradInput);
 
-    gradOutput_data = THCudataTensor_data(gradOutput);
+    gradOutput_data = THCudaTensor_data(gradOutput);
     gradOutput_dx_data = THCudaTensor_data(output_dx);
     gradOutput_dy_data = THCudaTensor_data(output_dy);
     gradInput_data = THCudaTensor_data(gradInput);
@@ -192,7 +190,7 @@ static int cunn_SpatialMaxPoolingPos_updateGradInput(lua_State *L){
     gradInput_kernel<<<blocks, threads>>> (gradInput_data, gradOutput_data, gradOutput_dx_data, gradOutput_dy_data,
                                            nInputPlane, nInputRows, nInputCols, nOutputRows, nOutputCols, kH, kW);
 
-    cudaError_r err = cudaGetLastError();
+    cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess){
         printf("error in SSMPoolingOffsets_updateGradInput: %s\n", cudaGetErrorString(err));
         THError("aborting");
