@@ -86,7 +86,7 @@ __global__ void gradInput_kernel(float* gradInput, float* gradOutput, float* out
    for (int yin = yin_start; yin < yin_end; yin += yin_step){
        for (int xin = xin_start; xin < xin_end; xin += xin_step){
            float* ptr_gradInput = ptr_gradInput_plane + xin + yin * input_w;
-           float* ptr_gradOuput = ptr_gradOutput_plane + xout + yout * output_w;
+           float* ptr_gradOutput = ptr_gradOutput_plane + xout + yout * output_w;
            float* ptr_output_dx = ptr_output_plane_dx + xout + yout * output_w;
            float* ptr_output_dy = ptr_output_plane_dy + xout + yout * output_w;
 
@@ -94,7 +94,7 @@ __global__ void gradInput_kernel(float* gradInput, float* gradOutput, float* out
             for (int kx = 0; kx < kW && xin + kx < input_w; kx++){
                 float* ptr_gradInput_pool = ptr_gradInput + kx + ky * input_w;
                 if(kx == *ptr_output_dx-1 && ky == *ptr_output_dy-1)
-                    *ptr_gradInput_pool = *ptr_gradOuput;
+                    *ptr_gradInput_pool = *ptr_gradOutput;
                 else
                     *ptr_gradInput_pool = 0;
             } // end for kx

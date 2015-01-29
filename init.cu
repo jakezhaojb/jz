@@ -9,6 +9,7 @@
 #include <thrust/device_ptr.h>
 
 #include "SpatialMaxPoolingPos.cu"
+#include "SpatialMaxUnpoolingPos.cu"
 
 LUA_EXTERNC DLL_EXPORT int luaopen_libjz(lua_State *L);
 
@@ -17,6 +18,8 @@ int luaopen_libjz(lua_State *L)
   lua_newtable(L);
 
   cunn_SpatialMaxPoolingPos_init(L);
+  cunn_SpatialMaxUnpoolingPos_init(L);
+
 
   return 1;
 }

@@ -8,6 +8,7 @@ end
 
 function SpatialMaxPoolingPos:updateOutput(input)
    if input:type() == 'torch.CudaTensor' then
+      print("switch to CUDA")
       self.output_p = torch.CudaTensor()
       self.output_dx = torch.CudaTensor()
       self.output_dy = torch.CudaTensor()
@@ -82,7 +83,9 @@ function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
    self.output_dx = self.output[{ {},{nOutputPlanes+1, 2*nOutputPlanes},{},{}  }]
    self.output_dy = self.output[{ {},{2*nOutputPlanes+1, 3*nOutputPlanes},{},{}  }]
    if input:type() == 'torch.CudaTensor' then
-      jz.SpatialMaxPoolingPos(self, input, gradOutput)
+      print("switch to CUDA")
+      gradOutput_p = gradOutput[{ {},{1,nOutputPlanes},{},{} }]
+      jz.SpatialMaxPoolingPos_updateGradInput(self, input, gradOutput_p)
    else
       self.gradInput = torch.Tensor():resizeAs(input):fill(0):typeAs(input)
       if inputSize:size() ~= 4 then
