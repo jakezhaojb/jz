@@ -5,3 +5,4 @@ require 'nn'
 require 'libjz'
 
 include('SpatialMaxPoolingPos.lua')
+include('SpatialMaxUnpoolingPos.lua')

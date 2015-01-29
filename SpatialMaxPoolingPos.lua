@@ -8,10 +8,13 @@ end
 
 function SpatialMaxPoolingPos:updateOutput(input)
    if input:type() == 'torch.CudaTensor' then
-      self.output = torch.CudaTensor()
+      self.output_p = torch.CudaTensor()
       self.output_dx = torch.CudaTensor()
       self.output_dy = torch.CudaTensor()
       jz.SpatialMaxPoolingPos_updateOutput(self, input)
+      join_table = nn.JoinTable(2)
+      join_table:cuda()
+      self.output = join_table:forward({self.output_p, self.output_dx, self.output_dy})
    else
       local inputSize = input:size()
       if inputSize:size() ~= 4 then
@@ -27,7 +30,8 @@ function SpatialMaxPoolingPos:updateOutput(input)
       local maxW = nOutputCols * kW
       local maxH = nOutputRows * kH
 
-      self.output:resize(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
+      self.output:resize(inputSize[1], 3*nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
+      self.output_p = torch.Tensor(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
       self.output_dx = torch.Tensor(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
       self.output_dy = torch.Tensor(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
 
@@ -51,7 +55,7 @@ function SpatialMaxPoolingPos:updateOutput(input)
                           end
                        end
                     end
-                    self.output[batch][inplane][oi][oj] = poolMax
+                    self.output_p[batch][inplane][oi][oj] = poolMax
                     self.output_dy[batch][inplane][oi][oj] = dy
                     self.output_dx[batch][inplane][oi][oj] = dx
                     oj = oj + 1
@@ -60,17 +64,27 @@ function SpatialMaxPoolingPos:updateOutput(input)
               end
          end
       end
+      join_table = nn.JoinTable(2)
+      self.output = join_table:forward({self.output_p, self.output_dx, self.output_dy})
    end
+   self.output_p = nil
+   self.output_dx = nil
+   self.output_dy = nil
+   collectgarbage()
    return self.output
 end
 
 
 function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
+   local inputSize = input:size()
+   local nOutputPlanes = inputSize[2]
+   self.output_p = self.output[{ {},{1, nOutputPlanes},{},{}  }]
+   self.output_dx = self.output[{ {},{nOutputPlanes+1, 2*nOutputPlanes},{},{}  }]
+   self.output_dy = self.output[{ {},{2*nOutputPlanes+1, 3*nOutputPlanes},{},{}  }]
    if input:type() == 'torch.CudaTensor' then
       jz.SpatialMaxPoolingPos(self, input, gradOutput)
    else
       self.gradInput = torch.Tensor():resizeAs(input):fill(0):typeAs(input)
-      local inputSize = input:size()
       if inputSize:size() ~= 4 then
          print('Expected a 4D Tensor in SpatialMaxPooling')
          return nil
@@ -78,17 +92,19 @@ function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
       local kW = self.kW
       local kH = self.kH
       local nBatches = inputSize[1]
-      local nOutputPlanes = inputSize[2]
       local nOutputCols = math.floor(inputSize[4]/kW)
       local nOutputRows = math.floor(inputSize[3]/kH)
       local maxW = nOutputCols * kW
       local maxH = nOutputRows * kH
+      local gradOutput_p = gradOutput[{ {},{1, nOutputPlanes},{},{}  }]
+      local gradOutput_dx = gradOutput[{ {},{nOutputPlanes+1, 2*nOutputPlanes},{},{}  }]
+      local gradOutput_dy = gradOutput[{ {},{2*nOutputPlanes+1, 3*nOutputPlanes},{},{}  }]
       
       for batch = 1, nBatches do
          for inplane = 1, inputSize[2] do
             local dwPlane = self.output_dx[batch][inplane]
             local dhPlane = self.output_dy[batch][inplane]
-            local gradOutputElem = gradOutput[batch][inplane]
+            local gradOutputElem = gradOutput_p[batch][inplane]
             local oi = 1
             for i = 1, maxH, kH do
                local oj = 1
@@ -101,5 +117,9 @@ function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
          end
       end
    end
+   self.output_p = nil
+   self.output_dx = nil
+   self.output_dy = nil
+   collectgarbage()
    return self.gradInput
 end
