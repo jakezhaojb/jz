@@ -8,10 +8,6 @@ end
 
 function SpatialMaxUnpoolingPos:updateOutput(input)
    local inputSize = input:size()
-   if inputSize:size() ~= 4 then
-      print('Expected a 4D Tensor in SpatialMaxPooling')
-      return nil
-   end
    local nBatches = inputSize[1]
    assert(inputSize[2] % 3 == 0)
    local nOutputPlanes = inputSize[2] / 3
@@ -20,7 +16,6 @@ function SpatialMaxUnpoolingPos:updateOutput(input)
    local nOutputCols = inputSize[4]*kW -- TODO, in case of not mod?
    local nOutputRows = inputSize[3]*kH
    if input:type() == 'torch.CudaTensor' then
-      print("switch to CUDA")
       local input_p = input[{ {},{1,nOutputPlanes},{},{} }]
       self.input_dx = input[{ {},{nOutputPlanes+1, 2*nOutputPlanes},{},{} }]
       self.input_dy = input[{ {},{2*nOutputPlanes+1,3*nOutputPlanes},{},{} }]
@@ -29,9 +24,6 @@ function SpatialMaxUnpoolingPos:updateOutput(input)
       self.input_dx = nil
       self.input_dy = nil
    else
-      --local maxW = nOutputCols / kW
-      --local maxH = nOutputRows / kH
-
       self.output:resize(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input):fill(0)
       local input_p = input[{{}, {1,nOutputPlanes},{},{} }]
       local input_dx = input[{{}, {nOutputPlanes+1,2*nOutputPlanes},{},{} }]
@@ -63,7 +55,6 @@ function SpatialMaxUnpoolingPos:updateGradInput(input, gradOutput)
    local inputSize = input:size()
    local nOutputPlanes = inputSize[2] / 3
    if input:type() == 'torch.CudaTensor' then
-      print("switch to CUDA")
       self.gradInput = torch.CudaTensor():resizeAs(input):fill(0):cuda()
       self.gradInput_p = self.gradInput[{ {},{1,nOutputPlanes},{},{} }]:clone()
       local input_p = input[{ {},{1, nOutputPlanes},{},{} }]
@@ -97,8 +88,8 @@ function SpatialMaxUnpoolingPos:updateGradInput(input, gradOutput)
 
       for batch = 1, nBatches do
          for inplane = 1, nOutputPlanes do
-            local dwPlane = input_dy[batch][inplane]
-            local dhPlane = input_dx[batch][inplane]
+            local dwPlane = input_dx[batch][inplane]
+            local dhPlane = input_dy[batch][inplane]
             local oi = 1
             for i = 1, nOutputRows, kH do
                local oj = 1

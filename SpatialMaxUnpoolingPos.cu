@@ -62,12 +62,8 @@ __global__ void gradInput_kernel_unpooling(float* gradInput_p, float* gradOutput
    float* ptr_input_plane_dx = input_dx + blockIdx.x * input_w * input_h;
    float* ptr_input_plane_dy = input_dy + blockIdx.x * input_w * input_h;
 
-   //int xout_start = threadIdx.x * kW;
-   //int yout_start = threadIdx.x * kH;
    const int xout_step = blockDim.x * kW;
    const int yout_step = blockDim.x * kH;
-   //int xout_end = output_w;
-   //int yout_end = output_h;
    
    int xout = threadIdx.x * kW;
    int yout = threadIdx.y * kH;
@@ -154,8 +150,6 @@ static int cunn_SpatialMaxUnpoolingPos_updateGradInput(lua_State *L){
 
     float* gradInput_p_data;
     float* gradOutput_data;
-    //float* gradOutput_dx_data;
-    //float* gradOutput_dy_data;
     float* input_dx_data;
     float* input_dy_data;
 

@@ -7,8 +7,18 @@ function SpatialMaxPoolingPos:__init(kW, kH)
 end
 
 function SpatialMaxPoolingPos:updateOutput(input)
+  -- TODO see how torch7 tackles this
+   local inputSize = input:size()
+   if inputSize:size() ~= 4 then
+      if inputSize:size() == 3 then
+         input = input:type('torch.DoubleTensor'):reshape(1, input:size(1), input:size(2), input:size(3)):typeAs(input)
+         inputSize = input:size()
+      else
+         print('Expected a 3D/4D Tensor in SpatialMaxPooling')
+         return nil
+      end
+   end
    if input:type() == 'torch.CudaTensor' then
-      print("switch to CUDA")
       self.output_p = torch.CudaTensor()
       self.output_dx = torch.CudaTensor()
       self.output_dy = torch.CudaTensor()
@@ -17,11 +27,6 @@ function SpatialMaxPoolingPos:updateOutput(input)
       join_table:cuda()
       self.output = join_table:forward({self.output_p, self.output_dx, self.output_dy})
    else
-      local inputSize = input:size()
-      if inputSize:size() ~= 4 then
-         print('Expected a 4D Tensor in SpatialMaxPooling')
-         return nil
-      end
       local kW = self.kW
       local kH = self.kH
       local nBatches = inputSize[1]
@@ -78,20 +83,25 @@ end
 
 function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
    local inputSize = input:size()
+  -- TODO see how torch7 tackles this
+   if inputSize:size() ~= 4 then
+      if inputSize:size() == 3 then
+         input = input:type('torch.DoubleTensor'):reshape(1, input:size(1), input:size(2), input:size(3)):typeAs(input)
+         inputSize = input:size()
+      else
+         print('Expected a 3D/4D Tensor in SpatialMaxPooling')
+         return nil
+      end
+   end
    local nOutputPlanes = inputSize[2]
    self.output_p = self.output[{ {},{1, nOutputPlanes},{},{}  }]
    self.output_dx = self.output[{ {},{nOutputPlanes+1, 2*nOutputPlanes},{},{}  }]
    self.output_dy = self.output[{ {},{2*nOutputPlanes+1, 3*nOutputPlanes},{},{}  }]
    if input:type() == 'torch.CudaTensor' then
-      print("switch to CUDA")
       gradOutput_p = gradOutput[{ {},{1,nOutputPlanes},{},{} }]
       jz.SpatialMaxPoolingPos_updateGradInput(self, input, gradOutput_p)
    else
       self.gradInput = torch.Tensor():resizeAs(input):fill(0):typeAs(input)
-      if inputSize:size() ~= 4 then
-         print('Expected a 4D Tensor in SpatialMaxPooling')
-         return nil
-      end
       local kW = self.kW
       local kH = self.kH
       local nBatches = inputSize[1]
