@@ -62,20 +62,19 @@ __global__ void gradInput_kernel_unpooling(float* gradInput_p, float* gradOutput
    float* ptr_input_plane_dx = input_dx + blockIdx.x * input_w * input_h;
    float* ptr_input_plane_dy = input_dy + blockIdx.x * input_w * input_h;
 
-   const int xout_step = blockDim.x * kW;
-   const int yout_step = blockDim.x * kH;
-   
-   int xout = threadIdx.x * kW;
-   int yout = threadIdx.y * kH;
-   int xin_start = threadIdx.x;
-   int yin_start = threadIdx.y;
-   const int xin_step = blockDim.x;
-   const int yin_step = blockDim.y;
-   int xin_end = input_w;
-   int yin_end = input_h;
+    int xin = threadIdx.x;
+    int yin = threadIdx.y;
+    const int xin_step = blockDim.x;
+    const int yin_step = blockDim.y;
+    int xout_start = threadIdx.x * kW;
+    int yout_start = threadIdx.y * kH;
+    const int xout_step = blockDim.x * kW;
+    const int yout_step = blockDim.y * kH;
+    int xout_end = output_w;
+    int yout_end = output_h;
 
-   for (int yin = yin_start; yin < yin_end; yin += yin_step){
-       for (int xin = xin_start; xin < xin_end; xin += xin_step){
+   for (int yout = yout_start; yout < yout_end; yout += yout_step){
+       for (int xout = xout_start; xout < xout_end; xout += xout_step){
            float* ptr_gradInput_p = ptr_gradInput_plane_p + xin + yin * input_w;
            float* ptr_gradOutput = ptr_gradOutput_plane + xout + yout * output_w;
            float* ptr_input_dx = ptr_input_plane_dx + xin + yin * input_w;
@@ -83,9 +82,9 @@ __global__ void gradInput_kernel_unpooling(float* gradInput_p, float* gradOutput
 
            *ptr_gradInput_p = *(ptr_gradOutput + (int)*ptr_input_dx - 1 + ((int)*ptr_input_dy - 1) * output_w);
 
-           xout += xout + xout_step;
+           xin += xin + xin_step;
        } // end for xin
-       yout += yout_step;
+       yin += yin_step;
    } // end for yin
 }
 
@@ -113,11 +112,11 @@ static int cunn_SpatialMaxUnpoolingPos_updateOutput(lua_State *L){
     luaL_argcheck(L, nOutputCols >= kW && nOutputRows >= kH, 2, "input_p image smaller than kernel size");
 
     input_p = THCudaTensor_newContiguous(input_p);
+    input_dx = THCudaTensor_newContiguous(input_dx);
+    input_dy = THCudaTensor_newContiguous(input_dy);
     input_p_data = THCudaTensor_data(input_p);
 
     THCudaTensor_resize4d(output, nBatch, nInputPlane, nOutputRows, nOutputCols);
-    THCudaTensor_resize4d(input_dx, nBatch, nInputPlane, nOutputRows, nOutputCols);
-    THCudaTensor_resize4d(input_dy, nBatch, nInputPlane, nOutputRows, nOutputCols);
 
     output_data = THCudaTensor_data(output);
     input_dx_data = THCudaTensor_data(input_dx);
@@ -129,6 +128,8 @@ static int cunn_SpatialMaxUnpoolingPos_updateOutput(lua_State *L){
     output_kernel_unpooling <<<blocks, threads>>> (input_p_data, output_data, input_dx_data, input_dy_data, nInputPlane, nInputRows, nInputCols, nOutputRows, nOutputCols, kH, kW);
 
     THCudaTensor_free(input_p);
+    THCudaTensor_free(input_dx);
+    THCudaTensor_free(input_dy);
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess){
@@ -163,6 +164,11 @@ static int cunn_SpatialMaxUnpoolingPos_updateGradInput(lua_State *L){
     THCudaTensor_resizeAs(gradInput_p, input_p);
     THCudaTensor_zero(gradInput_p);
 
+    input_p = THCudaTensor_newContiguous(input_p);
+    input_dx = THCudaTensor_newContiguous(input_dx);
+    input_dy = THCudaTensor_newContiguous(input_dy);
+    gradOutput = THCudaTensor_newContiguous(gradOutput);
+
     gradOutput_data = THCudaTensor_data(gradOutput);
     input_dx_data = THCudaTensor_data(input_dx);
     input_dy_data = THCudaTensor_data(input_dy);
@@ -179,6 +185,12 @@ static int cunn_SpatialMaxUnpoolingPos_updateGradInput(lua_State *L){
         printf("error in SSMPoolingOffsets_updateGradInput: %s\n", cudaGetErrorString(err));
         THError("aborting");
     }
+
+    THCudaTensor_free(input_p);
+    THCudaTensor_free(input_dx);
+    THCudaTensor_free(input_dy);
+    THCudaTensor_free(gradOutput);
+
     return 1;
 }
 
