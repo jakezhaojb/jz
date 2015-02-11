@@ -71,17 +71,16 @@ __global__ void gradInput_kernel(float* gradInput, float* gradOutput, float* out
    float* ptr_output_plane_dx = output_dx + blockIdx.x * output_w * output_h;
    float* ptr_output_plane_dy = output_dy + blockIdx.x * output_w * output_h;
 
-   int xin_start = threadIdx.x * kW;
-   int yin_start = threadIdx.y * kH;
-   const int xin_step = blockDim.x * kW;
-   const int yin_step = blockDim.y * kH;
-   int xin_end = (input_w/kW) * kW;
-   int yin_end = (input_h/kH) * kH;
-    
-   int xout = threadIdx.x;
-   int yout = threadIdx.y;
-   const int xout_step = blockDim.x;
-   const int yout_step = blockDim.y;
+    int xout = threadIdx.x;
+    int yout = threadIdx.y;
+    const int xout_step = blockDim.x;
+    const int yout_step = blockDim.y;
+    int xin_start = threadIdx.x * kW;
+    int yin_start = threadIdx.y * kH;
+    const int xin_step = blockDim.x * kW;
+    const int yin_step = blockDim.y * kH;
+    int xin_end = (input_w/kW) * kW;  //TODO could this be right?
+    int yin_end = (input_h/kH) * kH;
 
    for (int yin = yin_start; yin < yin_end; yin += yin_step){
        for (int xin = xin_start; xin < xin_end; xin += xin_step){
@@ -179,6 +178,10 @@ static int cunn_SpatialMaxPoolingPos_updateGradInput(lua_State *L){
     THCudaTensor_resizeAs(gradInput, input);
     THCudaTensor_zero(gradInput);
 
+    output_dx = THCudaTensor_newContiguous(output_dx);
+    output_dy = THCudaTensor_newContiguous(output_dy);
+    gradOutput = THCudaTensor_newContiguous(gradOutput);
+
     gradOutput_data = THCudaTensor_data(gradOutput);
     output_dx_data = THCudaTensor_data(output_dx);
     output_dy_data = THCudaTensor_data(output_dy);
@@ -195,6 +198,11 @@ static int cunn_SpatialMaxPoolingPos_updateGradInput(lua_State *L){
         printf("error in SSMPoolingOffsets_updateGradInput: %s\n", cudaGetErrorString(err));
         THError("aborting");
     }
+
+    THCudaTensor_free(gradOutput);
+    THCudaTensor_free(output_dx);
+    THCudaTensor_free(output_dy);
+
     return 1;
 }
 

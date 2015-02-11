@@ -2,7 +2,7 @@ require 'jz'
 
 unit_test_SpatialMaxPoolingPos = function()
    print("--- Input --- \n")
-   x = torch.rand(1,2,4,4)
+   x = torch.rand(2,2,4,4)
    print(x)
    a = nn.Sequential()
    a:add(jz.SpatialMaxPoolingPos(2,2))
@@ -33,7 +33,7 @@ end
 
 unit_test_SpatialMaxUnpoolingPos = function()
    print("--- Input --- ")
-   x = torch.rand(1,2,4,4)
+   x = torch.rand(3,2,4,4)
    --x = torch.rand(1,4,4) -- Different number of planes of Tensor
    print(x)
    a = nn.Sequential()
@@ -62,5 +62,5 @@ unit_test_SpatialMaxUnpoolingPos = function()
 end
 
 
---unit_test_SpatialMaxPoolingPos()
-unit_test_SpatialMaxUnpoolingPos()
+unit_test_SpatialMaxPoolingPos()
+--unit_test_SpatialMaxUnpoolingPos()
