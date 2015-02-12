@@ -6,3 +6,4 @@ require 'libjz'
 
 include('SpatialMaxPoolingPos.lua')
 include('SpatialMaxUnpoolingPos.lua')
+include('SpatialMlpUnPooling.lua')

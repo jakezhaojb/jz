@@ -61,6 +61,35 @@ unit_test_SpatialMaxUnpoolingPos = function()
    print(randGrad)
 end
 
+unit_test_SpatialMlpUnPooling = function()
+   print("--- Input --- ")
+   x = torch.rand(3,2,2,2):fill(1)
+   print(x)
+   a = nn.Sequential()
+   a:add(jz.SpatialMlpUnPooling(2,2,2,2))
+   print("--- weight ---")
+   print(a:get(1).weight)
+   print("--- Output after unPooling ---")
+   y = a:forward(x)
+   print(y)
+   randGrad = torch.rand(y:size()):typeAs(y):fill(1)
+   -- Update parameters
+   _, grad = a:getParameters()
+   a:zeroGradParameters()
+   print("--- Gradients --- ")
+   dfdx = a:backward(x,randGrad)
+   print(dfdx)
+   print("-- Gradient benchmark ---")
+   local sum_weight = torch.Tensor(x:size(2)):fill(0)
+   for j = 1, x:size(2) do
+      sum_weight[j] = a:get(1).weight[j]:sum()
+   end
+   print(sum_weight)
+   print("--- update parameters --- ")
+   print(grad)
+end
+
 
 --unit_test_SpatialMaxPoolingPos()
-unit_test_SpatialMaxUnpoolingPos()
+--unit_test_SpatialMaxUnpoolingPos()
+unit_test_SpatialMlpUnPooling()

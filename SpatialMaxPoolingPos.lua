@@ -8,16 +8,15 @@ end
 
 function SpatialMaxPoolingPos:updateOutput(input)
   -- TODO see how torch7 tackles this
-   local inputSize = input:size()
-   if inputSize:size() ~= 4 then
-      if inputSize:size() == 3 then
-         input = input:type('torch.DoubleTensor'):reshape(1, input:size(1), input:size(2), input:size(3)):typeAs(input)
-         inputSize = input:size()
+   if input:dim() ~= 4 then
+      if input:dim() == 3 then
+         input = input:float():reshape(1, input:size(1), input:size(2), input:size(3)):typeAs(input)
       else
          print('Expected a 3D/4D Tensor in SpatialMaxPooling')
          return nil
       end
    end
+   local inputSize = input:size()
    if input:type() == 'torch.CudaTensor' then
       self.output_p = torch.CudaTensor()
       self.output_dx = torch.CudaTensor()
@@ -82,17 +81,15 @@ end
 
 
 function SpatialMaxPoolingPos:updateGradInput(input, gradOutput)
-   local inputSize = input:size()
-  -- TODO see how torch7 tackles this
-   if inputSize:size() ~= 4 then
-      if inputSize:size() == 3 then
-         input = input:type('torch.DoubleTensor'):reshape(1, input:size(1), input:size(2), input:size(3)):typeAs(input)
-         inputSize = input:size()
+   if input:dim() ~= 4 then
+      if input:dim() == 3 then
+         input = input:resize(1, input:size(1), input:size(2), input:size(3)):typeAs(input)
       else
          print('Expected a 3D/4D Tensor in SpatialMaxPooling')
          return nil
       end
    end
+   inputSize = input:size()
    local nOutputPlanes = inputSize[2]
    self.output_p = self.output[{ {},{1, nOutputPlanes},{},{}  }]
    self.output_dx = self.output[{ {},{nOutputPlanes+1, 2*nOutputPlanes},{},{}  }]
