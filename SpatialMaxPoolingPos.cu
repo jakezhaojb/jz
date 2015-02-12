@@ -98,7 +98,7 @@ __global__ void gradInput_kernel(float* gradInput, float* gradOutput, float* out
                     *ptr_gradInput_pool = 0;
             } // end for kx
            } // end for ky
-           xout += xout + xout_step;
+           xout += xout_step;
        } // end for xin
        yout += yout_step;
    } // end for yin

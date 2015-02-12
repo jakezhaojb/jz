@@ -48,9 +48,9 @@ __global__ void output_kernel_unpooling(float *input, float *output, float *inpu
                  }   
               }     
            } // endif
-           xin += xin + xin_step;
+           xin += xin_step;
         } // end xout
-        yin += yin + yin_step;
+        yin += yin_step;
     } // end yout
 }
 
@@ -82,10 +82,10 @@ __global__ void gradInput_kernel_unpooling(float* gradInput_p, float* gradOutput
 
            *ptr_gradInput_p = *(ptr_gradOutput + (int)*ptr_input_dx - 1 + ((int)*ptr_input_dy - 1) * output_w);
 
-           xin += xin + xin_step;
-       } // end for xin
+           xin += xin_step;
+       } // end for xout
        yin += yin_step;
-   } // end for yin
+   } // end for yout
 }
 
 

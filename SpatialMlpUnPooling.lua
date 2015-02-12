@@ -94,7 +94,7 @@ function SpatialMlpUnPooling:updateGradInput(input, gradOutput)
    inputSize = input:size()
    if input:type() == 'torch.CudaTensor' then
       self.gradInput = torch.Tensor():cuda()
-      jz.SpatialMlpUnPooling_updateGradInput(input, gradOutput)
+      jz.SpatialMlpUnPooling_updateGradInput(self, input, gradOutput)
    else
       self.gradInput = torch.Tensor():resizeAs(input):typeAs(input):fill(0)
       local kW = self.kW
@@ -121,6 +121,7 @@ function SpatialMlpUnPooling:updateGradInput(input, gradOutput)
    return self.gradInput
 end
 
+
 function SpatialMlpUnPooling:accGradParameters(input, gradOutput, scale)
    scale = scale or 1
    
@@ -135,8 +136,7 @@ function SpatialMlpUnPooling:accGradParameters(input, gradOutput, scale)
    inputSize = input:size()
 
    if input:type() == 'torch.CudaTensor' then
-      self.gradInput = torch.Tensor():cuda()
-      jz.SpatialMlpUnPooling_accGradParameters(input, gradOutput, scale)
+      jz.SpatialMlpUnPooling_accGradParameters(self, input, gradOutput, scale)
    else
       local kW = self.kW
       local kH = self.kH
@@ -146,7 +146,6 @@ function SpatialMlpUnPooling:accGradParameters(input, gradOutput, scale)
       local nOutputRows = inputSize[3] * kH
       local nCols = inputSize[4]
       local nRows = inputSize[3]
-
       for plane = 1, nOutputPlane do
          gradWeight_elem = self.gradWeight[plane]
          for batch = 1, nBatches do
@@ -154,7 +153,7 @@ function SpatialMlpUnPooling:accGradParameters(input, gradOutput, scale)
             local gradOutput_elem = gradOutput[batch][plane]
             for i = 1, nRows do
                for j = 1, nCols do
-                  gradWeight_elem:add(gradOutput_elem[{ {(i-1)*kH+1,i*kH},{(j-1)*kW+1,j*kW} }], input_elem[i][j]*scale)
+                  gradWeight_elem:add(gradOutput_elem[{ {(i-1)*kH+1,i*kH},{(j-1)*kW+1,j*kW} }]*input_elem[i][j]*scale)
                end
             end
          end
