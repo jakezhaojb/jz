@@ -33,7 +33,7 @@ function SpatialMlpPooling:reset(stdv)
    end
    if nn.oldSeed then
       self.weight:apply(function()
-         return torch.uniform(-stdv, stdv)
+         return torch.uniform(-stdv, stdv) 
       end)
       --self.bias:apply(function()
       --   return torch.uniform(-stdv, stdv)

@@ -108,7 +108,7 @@ __global__ void accGrad_kernel(float* input, float* grad_output, float* grad_wei
       for (int xin = xin_start; xin < xin_end; xin += xin_step){
          float* ptr_grad_output_plane_elem = ptr_grad_output_plane + xout + yout * output_w;
          float* ptr_input_plane_elem = ptr_input_plane + xin + yin * input_w;
-         if (xout < input_w && yout < input_h){
+         if (xout < output_w && yout < output_h){
             for (int ky = 0; ky < kH && yin + ky < input_h; ky++){
                for (int kx = 0; kx < kW && xin + kx < input_w; kx++){
                   float* grad_weight_plane_elem = grad_weight_plane + kx + ky * kW;
@@ -242,8 +242,7 @@ static int cunn_SpatialMlpPooling_accGradParameters(lua_State *L){
 
     luaL_argcheck(L, nInputCols >= kW && nInputRows >= kH, 2, "input image smaller than kernel size");
 
-    THCudaTensor_resizeAs(gradWeight, input);
-    THCudaTensor_zero(gradWeight);
+    THCudaTensor_resizeAs(gradWeight, weight);
 
     input = THCudaTensor_newContiguous(input);
     gradOutput = THCudaTensor_newContiguous(gradOutput);

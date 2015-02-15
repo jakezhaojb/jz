@@ -235,8 +235,7 @@ static int cunn_SpatialMlpUnPooling_accGradParameters(lua_State *L){
 
     luaL_argcheck(L, nOutputCols >= kW && nOutputRows >= kH, 2, "input image smaller than kernel size");
 
-    THCudaTensor_resizeAs(gradWeight, input);
-    THCudaTensor_zero(gradWeight);
+    THCudaTensor_resizeAs(gradWeight, weight);
 
     input = THCudaTensor_newContiguous(input);
     gradOutput = THCudaTensor_newContiguous(gradOutput);
