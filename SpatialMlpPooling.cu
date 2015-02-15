@@ -112,8 +112,8 @@ __global__ void accGrad_kernel(float* input, float* grad_output, float* grad_wei
             for (int ky = 0; ky < kH && yin + ky < input_h; ky++){
                for (int kx = 0; kx < kW && xin + kx < input_w; kx++){
                   float* grad_weight_plane_elem = grad_weight_plane + kx + ky * kW;
-                  float* ptr_grad_output_plane_elem_ = ptr_grad_output_plane_elem + kx + ky * output_w;
-                  float tmp = scale * (*ptr_input_plane_elem) * (*ptr_grad_output_plane_elem_);
+                  float* ptr_input_plane_elem_elem = ptr_input_plane_elem + kx + ky * input_w;
+                  float tmp = scale * (*ptr_input_plane_elem_elem) * (*ptr_grad_output_plane_elem);
                   atomicAdd(grad_weight_plane_elem, tmp);
                }  
             }  
