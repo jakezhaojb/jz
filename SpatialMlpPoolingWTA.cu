@@ -1,6 +1,7 @@
 #include "luaT.h"
 #include "THC.h"
 #include "cuda.h"
+#include "aux.cuh"
 
 #include <thrust/transform.h>
 #include <thrust/device_ptr.h>
@@ -156,6 +157,7 @@ __global__ void accGrad_kernel_wta(float* input, float* grad_output, float* grad
 
 
 static int cunn_SpatialMlpPoolingWTA_updateOutput(lua_State *L){
+    THCState* state = getCutorchState(L);
     THCudaTensor* input = (THCudaTensor*)luaT_checkudata(L, 2, "torch.CudaTensor");
     THCudaTensor* output = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "output", "torch.CudaTensor");
     THCudaTensor* weight = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "weight", "torch.CudaTensor");
@@ -179,21 +181,21 @@ static int cunn_SpatialMlpPoolingWTA_updateOutput(lua_State *L){
 
     luaL_argcheck(L, nInputCols >= kW && nInputRows >= kH, 2, "input image smaller than kernel size");
 
-    input = THCudaTensor_newContiguous(input);
+    input = THCudaTensor_newContiguous(state, input);
 
-    input_data = THCudaTensor_data(input);
-    weight_data = THCudaTensor_data(weight);
+    input_data = THCudaTensor_data(state, input);
+    weight_data = THCudaTensor_data(state, weight);
 
-    THCudaTensor_resize4d(output, nBatch, nInputPlane, nOutputRows, nOutputCols);
-    THCudaTensor_zero(output);
-    THCudaTensor_resize4d(dx, nBatch, nInputPlane, nOutputRows, nOutputCols);
-    THCudaTensor_zero(dx);
-    THCudaTensor_resize4d(dy, nBatch, nInputPlane, nOutputRows, nOutputCols);
-    THCudaTensor_zero(dy);
+    THCudaTensor_resize4d(state, output, nBatch, nInputPlane, nOutputRows, nOutputCols);
+    THCudaTensor_zero(state, output);
+    THCudaTensor_resize4d(state, dx, nBatch, nInputPlane, nOutputRows, nOutputCols);
+    THCudaTensor_zero(state, dx);
+    THCudaTensor_resize4d(state, dy, nBatch, nInputPlane, nOutputRows, nOutputCols);
+    THCudaTensor_zero(state, dy);
 
-    output_data = THCudaTensor_data(output);
-    dx_data = THCudaTensor_data(dx);
-    dy_data = THCudaTensor_data(dy);
+    output_data = THCudaTensor_data(state, output);
+    dx_data = THCudaTensor_data(state, dx);
+    dy_data = THCudaTensor_data(state, dy);
 
     dim3 blocks(nInputPlane, nBatch);
     dim3 threads(32,8);
@@ -201,7 +203,7 @@ static int cunn_SpatialMlpPoolingWTA_updateOutput(lua_State *L){
     output_kernel_wta <<<blocks, threads>>> (input_data, output_data, weight_data, dx_data, dy_data,
                                              nInputRows, nInputCols, nOutputRows, nOutputCols, kW, kH);
 
-    THCudaTensor_free(input);
+    THCudaTensor_free(state, input);
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess){
@@ -213,6 +215,7 @@ static int cunn_SpatialMlpPoolingWTA_updateOutput(lua_State *L){
 
 
 static int cunn_SpatialMlpPoolingWTA_updateGradInput(lua_State *L){
+    THCState* state = getCutorchState(L);
     THCudaTensor* input = (THCudaTensor*)luaT_checkudata(L, 2, "torch.CudaTensor");
     THCudaTensor* gradOutput = (THCudaTensor*)luaT_checkudata(L, 3, "torch.CudaTensor");
     THCudaTensor* weight = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "weight", "torch.CudaTensor");
@@ -238,20 +241,20 @@ static int cunn_SpatialMlpPoolingWTA_updateGradInput(lua_State *L){
 
     luaL_argcheck(L, nInputCols >= kW && nInputRows >= kH, 2, "input image smaller than kernel size");
 
-    THCudaTensor_resizeAs(gradInput, input);
-    THCudaTensor_zero(gradInput);
+    THCudaTensor_resizeAs(state, gradInput, input);
+    THCudaTensor_zero(state, gradInput);
 
-    input = THCudaTensor_newContiguous(input);
-    dx = THCudaTensor_newContiguous(dx);
-    dy = THCudaTensor_newContiguous(dy);
-    gradOutput = THCudaTensor_newContiguous(gradOutput);
+    input = THCudaTensor_newContiguous(state, input);
+    dx = THCudaTensor_newContiguous(state, dx);
+    dy = THCudaTensor_newContiguous(state, dy);
+    gradOutput = THCudaTensor_newContiguous(state, gradOutput);
 
-    input_data = THCudaTensor_data(input);
-    gradOutput_data = THCudaTensor_data(gradOutput);
-    gradInput_data = THCudaTensor_data(gradInput);
-    weight_data = THCudaTensor_data(weight);
-    dx_data = THCudaTensor_data(dx);
-    dy_data = THCudaTensor_data(dy);
+    input_data = THCudaTensor_data(state, input);
+    gradOutput_data = THCudaTensor_data(state, gradOutput);
+    gradInput_data = THCudaTensor_data(state, gradInput);
+    weight_data = THCudaTensor_data(state, weight);
+    dx_data = THCudaTensor_data(state, dx);
+    dy_data = THCudaTensor_data(state, dy);
 
     dim3 blocks(nInputPlane, nBatch);
     dim3 threads(32,8);
@@ -259,10 +262,10 @@ static int cunn_SpatialMlpPoolingWTA_updateGradInput(lua_State *L){
     grad_input_kernel_wta <<<blocks, threads>>> (input_data, gradOutput_data, gradInput_data, weight_data, dx_data, dy_data,
                                                  nInputRows, nInputCols, nOutputRows, nOutputCols, kW, kH);
 
-    THCudaTensor_free(input);
-    THCudaTensor_free(dx);
-    THCudaTensor_free(dy);
-    THCudaTensor_free(gradOutput);
+    THCudaTensor_free(state, input);
+    THCudaTensor_free(state, dx);
+    THCudaTensor_free(state, dy);
+    THCudaTensor_free(state, gradOutput);
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess){
@@ -273,6 +276,7 @@ static int cunn_SpatialMlpPoolingWTA_updateGradInput(lua_State *L){
 }
 
 static int cunn_SpatialMlpPoolingWTA_accGradParameters(lua_State *L){
+    THCState* state = getCutorchState(L);
     THCudaTensor* input = (THCudaTensor*)luaT_checkudata(L, 2, "torch.CudaTensor");
     THCudaTensor* gradOutput = (THCudaTensor*)luaT_checkudata(L, 3, "torch.CudaTensor");
     THCudaTensor* weight = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "weight", "torch.CudaTensor");
@@ -299,17 +303,17 @@ static int cunn_SpatialMlpPoolingWTA_accGradParameters(lua_State *L){
 
     luaL_argcheck(L, nInputCols >= kW && nInputRows >= kH, 2, "input image smaller than kernel size");
 
-    THCudaTensor_resizeAs(gradWeight, weight);
+    THCudaTensor_resizeAs(state, gradWeight, weight);
 
-    input = THCudaTensor_newContiguous(input);
-    gradOutput = THCudaTensor_newContiguous(gradOutput);
+    input = THCudaTensor_newContiguous(state, input);
+    gradOutput = THCudaTensor_newContiguous(state, gradOutput);
 
-    input_data = THCudaTensor_data(input);
-    gradOutput_data = THCudaTensor_data(gradOutput);
-    gradWeight_data = THCudaTensor_data(gradWeight);
-    weight_data = THCudaTensor_data(weight);
-    dx_data = THCudaTensor_data(dx);
-    dy_data = THCudaTensor_data(dy);
+    input_data = THCudaTensor_data(state, input);
+    gradOutput_data = THCudaTensor_data(state, gradOutput);
+    gradWeight_data = THCudaTensor_data(state, gradWeight);
+    weight_data = THCudaTensor_data(state, weight);
+    dx_data = THCudaTensor_data(state, dx);
+    dy_data = THCudaTensor_data(state, dy);
 
     dim3 blocks(nInputPlane, nBatch);
     dim3 threads(32,8);
@@ -317,8 +321,8 @@ static int cunn_SpatialMlpPoolingWTA_accGradParameters(lua_State *L){
     accGrad_kernel_wta <<<blocks, threads>>> (input_data, gradOutput_data, gradWeight_data, weight_data, dx_data, dy_data,
                                               nInputRows, nInputCols, nOutputRows, nOutputCols, kW, kH, scale);
 
-    THCudaTensor_free(input);
-    THCudaTensor_free(gradOutput);
+    THCudaTensor_free(state, input);
+    THCudaTensor_free(state, gradOutput);
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess){

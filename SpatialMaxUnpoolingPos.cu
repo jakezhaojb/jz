@@ -1,6 +1,7 @@
 #include "luaT.h"
 #include "THC.h"
 #include "cuda.h"
+#include "aux.cuh"
 
 #include <thrust/transform.h>
 #include <thrust/device_ptr.h>
@@ -90,6 +91,7 @@ __global__ void gradInput_kernel_unpooling(float* gradInput_p, float* gradOutput
 
 
 static int cunn_SpatialMaxUnpoolingPos_updateOutput(lua_State *L){
+    THCState* state = getCutorchState(L);
     THCudaTensor* input_p = (THCudaTensor*)luaT_checkudata(L, 2, "torch.CudaTensor");
     THCudaTensor* output = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "output", "torch.CudaTensor");
     THCudaTensor* input_dx = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "input_dx", "torch.CudaTensor");
@@ -111,25 +113,25 @@ static int cunn_SpatialMaxUnpoolingPos_updateOutput(lua_State *L){
 
     luaL_argcheck(L, nOutputCols >= kW && nOutputRows >= kH, 2, "input_p image smaller than kernel size");
 
-    input_p = THCudaTensor_newContiguous(input_p);
-    input_dx = THCudaTensor_newContiguous(input_dx);
-    input_dy = THCudaTensor_newContiguous(input_dy);
-    input_p_data = THCudaTensor_data(input_p);
+    input_p = THCudaTensor_newContiguous(state, input_p);
+    input_dx = THCudaTensor_newContiguous(state, input_dx);
+    input_dy = THCudaTensor_newContiguous(state, input_dy);
+    input_p_data = THCudaTensor_data(state, input_p);
 
-    THCudaTensor_resize4d(output, nBatch, nInputPlane, nOutputRows, nOutputCols);
+    THCudaTensor_resize4d(state, output, nBatch, nInputPlane, nOutputRows, nOutputCols);
 
-    output_data = THCudaTensor_data(output);
-    input_dx_data = THCudaTensor_data(input_dx);
-    input_dy_data = THCudaTensor_data(input_dy);
+    output_data = THCudaTensor_data(state, output);
+    input_dx_data = THCudaTensor_data(state, input_dx);
+    input_dy_data = THCudaTensor_data(state, input_dy);
 
     dim3 blocks(nInputPlane*nBatch, 1);
     dim3 threads(32,8);
     
     output_kernel_unpooling <<<blocks, threads>>> (input_p_data, output_data, input_dx_data, input_dy_data, nInputPlane, nInputRows, nInputCols, nOutputRows, nOutputCols, kH, kW);
 
-    THCudaTensor_free(input_p);
-    THCudaTensor_free(input_dx);
-    THCudaTensor_free(input_dy);
+    THCudaTensor_free(state, input_p);
+    THCudaTensor_free(state, input_dx);
+    THCudaTensor_free(state, input_dy);
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess){
@@ -140,6 +142,7 @@ static int cunn_SpatialMaxUnpoolingPos_updateOutput(lua_State *L){
 }
 
 static int cunn_SpatialMaxUnpoolingPos_updateGradInput(lua_State *L){
+    THCState* state = getCutorchState(L);
     THCudaTensor* gradOutput = (THCudaTensor*)luaT_checkudata(L, 3, "torch.CudaTensor");
     THCudaTensor* gradInput_p = (THCudaTensor*)luaT_getfieldcheckudata(L, 1, "gradInput_p", "torch.CudaTensor");
     THCudaTensor* input_p = (THCudaTensor*)luaT_checkudata(L, 2, "torch.CudaTensor");
@@ -161,18 +164,18 @@ static int cunn_SpatialMaxUnpoolingPos_updateGradInput(lua_State *L){
     long nOutputCols = gradOutput->size[3];
     long nOutputRows = gradOutput->size[2];
 
-    THCudaTensor_resizeAs(gradInput_p, input_p);
-    THCudaTensor_zero(gradInput_p);
+    THCudaTensor_resizeAs(state, gradInput_p, input_p);
+    THCudaTensor_zero(state, gradInput_p);
 
-    input_p = THCudaTensor_newContiguous(input_p);
-    input_dx = THCudaTensor_newContiguous(input_dx);
-    input_dy = THCudaTensor_newContiguous(input_dy);
-    gradOutput = THCudaTensor_newContiguous(gradOutput);
+    input_p = THCudaTensor_newContiguous(state, input_p);
+    input_dx = THCudaTensor_newContiguous(state, input_dx);
+    input_dy = THCudaTensor_newContiguous(state, input_dy);
+    gradOutput = THCudaTensor_newContiguous(state, gradOutput);
 
-    gradOutput_data = THCudaTensor_data(gradOutput);
-    input_dx_data = THCudaTensor_data(input_dx);
-    input_dy_data = THCudaTensor_data(input_dy);
-    gradInput_p_data = THCudaTensor_data(gradInput_p);
+    gradOutput_data = THCudaTensor_data(state, gradOutput);
+    input_dx_data = THCudaTensor_data(state, input_dx);
+    input_dy_data = THCudaTensor_data(state, input_dy);
+    gradInput_p_data = THCudaTensor_data(state, gradInput_p);
 
     dim3 blocks(nInputPlane*nbatch, 1);
     dim3 threads(32,8);
@@ -186,10 +189,10 @@ static int cunn_SpatialMaxUnpoolingPos_updateGradInput(lua_State *L){
         THError("aborting");
     }
 
-    THCudaTensor_free(input_p);
-    THCudaTensor_free(input_dx);
-    THCudaTensor_free(input_dy);
-    THCudaTensor_free(gradOutput);
+    THCudaTensor_free(state, input_p);
+    THCudaTensor_free(state, input_dx);
+    THCudaTensor_free(state, input_dy);
+    THCudaTensor_free(state, gradOutput);
 
     return 1;
 }

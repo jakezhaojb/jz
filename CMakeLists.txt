@@ -18,11 +18,11 @@ FIND_PACKAGE(CUDA 4.0 REQUIRED)
 
 LIST(APPEND CUDA_NVCC_FLAGS "-arch=sm_20")
 
-INCLUDE_DIRECTORIES("/home/jz1672/install/new_torch7_2014_10_24/include/THC"
-                    "/home/jz1672/install/new_torch7_2014_10_24/include"
-                    "/home/jz1672/install/new_torch7_2014_10_24/include/TH")
-LINK_DIRECTORIES("/home/jz1672/install/new_torch7_2014_10_24/lib/lua/5.1"
-                 "/home/jz1672/install/new_torch7_2014_10_24/lib")
+INCLUDE_DIRECTORIES("/home/jz1672/torch_sc/build/distro/install/include/THC"
+                    "/home/jz1672/torch_sc/build/distro/install/include"
+                    "/home/jz1672/torch_sc/build/distro/install/include/TH")
+LINK_DIRECTORIES("/home/jz1672/torch_sc/build/distro/install/lib/lua/5.1"
+                 "/home/jz1672/torch_sc/build/distro/install/lib")
 
 SET(src-cuda init.cu)
 #SET(luasrc init.lua)
