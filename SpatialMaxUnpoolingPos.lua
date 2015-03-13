@@ -24,7 +24,7 @@ function SpatialMaxUnpoolingPos:updateOutput(input)
       self.input_dx = nil
       self.input_dy = nil
    else
-      self.output:resize(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input):fill(0)
+      self.output = self.output:resize(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input):fill(0)
       local input_p = input[{{}, {1,nOutputPlanes},{},{} }]
       local input_dx = input[{{}, {nOutputPlanes+1,2*nOutputPlanes},{},{} }]
       local input_dy = input[{{}, {2*nOutputPlanes+1,3*nOutputPlanes},{},{} }]

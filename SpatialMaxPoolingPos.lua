@@ -35,7 +35,7 @@ function SpatialMaxPoolingPos:updateOutput(input)
       local maxW = nOutputCols * kW
       local maxH = nOutputRows * kH
 
-      self.output:resize(inputSize[1], 3*nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
+      self.output = self.output:resize(inputSize[1], 3*nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
       self.output_p = torch.Tensor(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
       self.output_dx = torch.Tensor(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
       self.output_dy = torch.Tensor(inputSize[1], nOutputPlanes, nOutputRows, nOutputCols):typeAs(input)
